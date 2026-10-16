@@ -1,1 +1,366 @@
-i
+
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Future Builder - Rent System</title>
+
+<style>
+*{box-sizing:border-box}
+body{
+ margin:0;
+ font-family:Arial,sans-serif;
+ background:#f1f5f9;
+ color:#1e293b
+}
+header{
+ background:#064e3b;
+ color:white;
+ text-align:center;
+ padding:25px 10px
+}
+header h1{margin:0;font-size:25px}
+.container{max-width:700px;margin:auto;padding:15px}
+.cards{
+ display:grid;
+ grid-template-columns:repeat(2,1fr);
+ gap:10px
+}
+.card,section{
+ background:white;
+ padding:15px;
+ border-radius:12px;
+ margin-bottom:15px;
+ box-shadow:0 2px 6px #0001
+}
+.card h3{font-size:13px;color:#64748b}
+.card strong{color:#047857;font-size:19px}
+h2{font-size:19px}
+input,button{
+ width:100%;
+ padding:12px;
+ margin:6px 0;
+ border-radius:7px;
+ font-size:15px
+}
+input{border:1px solid #cbd5e1}
+button{
+ border:0;
+ background:#047857;
+ color:white;
+ font-weight:bold
+}
+.blue{background:#1d4ed8}
+.red{background:#dc2626}
+.tenant{
+ border:1px solid #ddd;
+ padding:12px;
+ border-radius:8px;
+ margin:10px 0;
+ overflow-wrap:anywhere
+}
+.tenant p{margin:7px 0}
+small{color:#64748b}
+</style>
+</head>
+
+<body>
+
+<header>
+<h1>FUTURE BUILDER</h1>
+<p>HOUSE RENT PAYMENT SYSTEM</p>
+<p>Usimamizi wa Kodi za Nyumba</p>
+</header>
+
+<div class="container">
+
+<div class="cards">
+<div class="card">
+<h3>Wapangaji</h3>
+<strong id="count">0</strong>
+</div>
+<div class="card">
+<h3>Kodi Zilizolipwa</h3>
+<strong id="collected">TSh 0</strong>
+</div>
+<div class="card">
+<h3>Madeni</h3>
+<strong id="debts">TSh 0</strong>
+</div>
+<div class="card">
+<h3>Kodi Inayotakiwa</h3>
+<strong id="expected">TSh 0</strong>
+</div>
+</div>
+
+<section>
+<h2>➕ Sajili Mpangaji</h2>
+<form id="tenantForm">
+<input id="name" placeholder="Jina la mpangaji" required>
+<input id="phone" type="tel" placeholder="Namba ya simu" required>
+<input id="house" placeholder="Namba ya chumba/nyumba" required>
+<input id="rent" type="number" min="1" placeholder="Kodi ya mwezi (TSh)" required>
+<button type="submit">Sajili Mpangaji</button>
+</form>
+</section>
+
+<section>
+<h2>💰 Rekodi Malipo</h2>
+<form id="paymentForm">
+<input id="tenantId" type="number" min="1" placeholder="ID ya mpangaji" required>
+<input id="amount" type="number" min="1" placeholder="Kiasi kilicholipwa" required>
+<input id="paymentDate" type="date" required>
+<input id="reference" placeholder="Namba ya risiti (hiari)">
+<button type="submit">Hifadhi Malipo</button>
+</form>
+<small>Tumia ID inayoonekana kwenye orodha ya wapangaji.</small>
+</section>
+
+<section>
+<h2>🔎 Tafuta Mpangaji</h2>
+<input id="search" placeholder="Tafuta jina, simu au chumba">
+</section>
+
+<section>
+<h2>📋 Orodha ya Wapangaji</h2>
+<div id="tenantList"></div>
+</section>
+
+<section>
+<h2>🧾 Historia ya Malipo</h2>
+<div id="paymentList"></div>
+<button class="blue" onclick="exportData()">
+Pakua Ripoti ya Malipo
+</button>
+<button class="red" onclick="clearData()">
+Futa Data Zote
+</button>
+</section>
+
+</div>
+
+<script>
+let tenants=JSON.parse(
+ localStorage.getItem("rentTenants")||"[]"
+);
+let payments=JSON.parse(
+ localStorage.getItem("rentPayments")||"[]"
+);
+
+const money=n=>"TSh "+Number(n).toLocaleString("en-US");
+
+function save(){
+ localStorage.setItem("rentTenants",JSON.stringify(tenants));
+ localStorage.setItem("rentPayments",JSON.stringify(payments));
+ render();
+}
+
+function totalPaid(id){
+ return payments
+ .filter(p=>p.tenantId===id)
+ .reduce((s,p)=>s+p.amount,0);
+}
+
+function render(){
+
+ document.getElementById("count").textContent=tenants.length;
+
+ let collected=payments.reduce((s,p)=>s+p.amount,0);
+ let expected=tenants.reduce((s,t)=>s+t.rent,0);
+ let debts=tenants.reduce(
+ (s,t)=>s+Math.max(0,t.rent-totalPaid(t.id)),0
+ );
+
+ document.getElementById("collected").textContent=money(collected);
+ document.getElementById("expected").textContent=money(expected);
+ document.getElementById("debts").textContent=money(debts);
+
+ let q=document.getElementById("search").value.toLowerCase();
+ let list=document.getElementById("tenantList");
+ list.innerHTML="";
+
+ tenants.filter(t=>
+ (t.name+" "+t.phone+" "+t.house+" "+t.id)
+ .toLowerCase().includes(q)
+ ).forEach(t=>{
+
+ let paid=totalPaid(t.id);
+ let debt=Math.max(0,t.rent-paid);
+
+ let div=document.createElement("div");
+ div.className="tenant";
+
+ let title=document.createElement("h3");
+ title.textContent="ID "+t.id+" - "+t.name;
+ div.appendChild(title);
+
+ [
+ "Simu: "+t.phone,
+ "Chumba: "+t.house,
+ "Kodi ya mwezi: "+money(t.rent),
+ "Jumla iliyolipwa: "+money(paid),
+ "Deni: "+money(debt)
+ ].forEach(txt=>{
+ let p=document.createElement("p");
+ p.textContent=txt;
+ div.appendChild(p);
+ });
+
+ let del=document.createElement("button");
+ del.className="red";
+ del.textContent="Futa Mpangaji";
+
+ del.onclick=()=>{
+ if(confirm("Ufute mpangaji huyu na malipo yake?")){
+ tenants=tenants.filter(x=>x.id!==t.id);
+ payments=payments.filter(x=>x.tenantId!==t.id);
+ save();
+ }
+ };
+
+ div.appendChild(del);
+ list.appendChild(div);
+ });
+
+ if(!list.children.length){
+ list.textContent="Hakuna mpangaji aliyepatikana.";
+ }
+
+ let history=document.getElementById("paymentList");
+ history.innerHTML="";
+
+ [...payments].reverse().forEach(p=>{
+ let t=tenants.find(x=>x.id===p.tenantId);
+ let div=document.createElement("div");
+ div.className="tenant";
+
+ let info=document.createElement("p");
+ info.textContent=
+ (t?t.name:"Mpangaji #"+p.tenantId)+
+ " | "+money(p.amount)+
+ " | "+p.date+
+ (p.reference?" | Risiti: "+p.reference:"");
+
+ div.appendChild(info);
+ history.appendChild(div);
+ });
+
+ if(!history.children.length){
+ history.textContent="Bado hakuna malipo.";
+ }
+}
+
+document.getElementById("tenantForm").onsubmit=e=>{
+ e.preventDefault();
+
+ let id=tenants.length
+ ?Math.max(...tenants.map(t=>t.id))+1:1;
+
+ tenants.push({
+ id:id,
+ name:document.getElementById("name").value.trim(),
+ phone:document.getElementById("phone").value.trim(),
+ house:document.getElementById("house").value.trim(),
+ rent:Number(document.getElementById("rent").value)
+ });
+
+ e.target.reset();
+ save();
+ alert("Mpangaji amesajiliwa!");
+};
+
+document.getElementById("paymentForm").onsubmit=e=>{
+ e.preventDefault();
+
+ let id=Number(document.getElementById("tenantId").value);
+ let amount=Number(document.getElementById("amount").value);
+ let tenant=tenants.find(t=>t.id===id);
+
+ if(!tenant){
+ alert("ID ya mpangaji haijapatikana!");
+ return;
+ }
+
+ if(amount<=0){
+ alert("Weka kiasi sahihi!");
+ return;
+ }
+
+ payments.push({
+ tenantId:id,
+ amount:amount,
+ date:document.getElementById("paymentDate").value,
+ reference:document.getElementById("reference").value.trim()
+ });
+
+ e.target.reset();
+ document.getElementById("paymentDate").valueAsDate=new Date();
+ save();
+ alert("Malipo yamehifadhiwa!");
+};
+
+document.getElementById("search")
+.addEventListener("input",render);
+
+document.getElementById("paymentDate").valueAsDate=new Date();
+
+function exportData(){
+
+ let rows=[[
+ "Jina","Simu","Chumba","Kodi",
+ "Kilicholipwa","Deni","Tarehe","Malipo","Risiti"
+ ]];
+
+ tenants.forEach(t=>{
+ let ps=payments.filter(p=>p.tenantId===t.id);
+
+ if(!ps.length){
+ rows.push([
+ t.name,t.phone,t.house,t.rent,
+ totalPaid(t.id),
+ Math.max(0,t.rent-totalPaid(t.id)),
+ "","",""
+ ]);
+ }
+
+ ps.forEach(p=>{
+ rows.push([
+ t.name,t.phone,t.house,t.rent,
+ totalPaid(t.id),
+ Math.max(0,t.rent-totalPaid(t.id)),
+ p.date,p.amount,p.reference
+ ]);
+ });
+ });
+
+ let csv=rows.map(r=>
+ r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(",")
+ ).join("\r\n");
+
+ let blob=new Blob(["\uFEFF"+csv],{
+ type:"text/csv;charset=utf-8;"
+ });
+
+ let url=URL.createObjectURL(blob);
+ let a=document.createElement("a");
+ a.href=url;
+ a.download="ripoti-kodi-nyumba.csv";
+ a.click();
+ URL.revokeObjectURL(url);
+}
+
+function clearData(){
+ if(confirm("Una uhakika wa kufuta wapangaji na malipo yote?")){
+ tenants=[];
+ payments=[];
+ save();
+ }
+}
+
+render();
+</script>
+
+</body>
+</html>
+
